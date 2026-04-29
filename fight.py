@@ -13,12 +13,12 @@ al = "qwertyuiopasdfghjklzxcvbnm"
 
 angle = 0
 screen = pygame.display.set_mode(size)
+pygame.display.set_caption("Desmos Bossfight!")
 pygame.font.init()
 font = pygame.font.Font(pygame.font.get_default_font(), 12)
 bigger_font = pygame.font.Font(pygame.font.get_default_font(),18)
 super_font = pygame.font.Font(pygame.font.get_default_font(),24)
 hyper_font = pygame.font.Font("times.ttf", 75)
-
 player_pos = [250,250]
 player_rad = 20
 player_hp = 100
@@ -28,6 +28,7 @@ player_col = (240, 216, 144)
 
 boss_image = pygame.image.load("desmoslogo.png").convert_alpha()
 boss_image = pygame.transform.scale(boss_image , (75,75))
+pygame.display.set_icon(boss_image)
 boss_pos = [250,125]
 boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
 boss_hp = 2500
@@ -42,7 +43,7 @@ all_bullets = []
 dash_cooldown = 0        
 dash_duration = 0          
 DASH_TOTAL_FRAMES = 3
-DASH_POWER = 100
+DASH_POWER = 150
 dash_dx = 0
 dash_dy = 0
 dash_cooldown_dx = 0
@@ -314,12 +315,17 @@ def death():
 
     death_text.set_alpha(death_text_opacity)
 
+    draw_player(player_pos[0],player_pos[1],(255,255,255))
+    draw_hands(player_pos[0],player_pos[1],angle,(255,255,255))
+
+    if min(60,death_text_frame) == 60:
+        pygame.draw.circle(screen,(0,0,0),tuple(player_pos),death_text_frame-60)
+
+
     death_text_rect = death_text.get_rect(center = (250,63))
     death_text_frame += 1
     screen.blit(death_text,death_text_rect)
 
-    draw_player(player_pos[0],player_pos[1],(255,255,255))
-    draw_hands(player_pos[0],player_pos[1],angle,(255,255,255))
 
 
     if min(90,death_text_frame) == 90:
@@ -327,7 +333,20 @@ def death():
     if min(90 + 255 +120 , death_text_frame) == 90 + 255 + 120:
             pygame.quit()
             sys.exit()  
-    
+
+
+
+attack3_circle_rad = 450
+attack3_circle_rad_target = 450
+attack3_frame = 0
+def attack3():
+    global attack3_circle_rad , attack3_circle_rad_target, attack3_frame , target_x
+    attack3_circle_rad_target = 250
+
+
+
+
+
 
 
 
@@ -336,7 +355,7 @@ running = True
 while running:
     clock.tick(60)
     if current_phase >= 0 : screen.fill((255,255,255))
-
+    pygame.draw.circle(screen,(0,0,0),(width//2,height//2),attack3_circle_rad,10)
 
 
 
@@ -365,20 +384,24 @@ while running:
 
 
 
-
-
+    attack3_circle_rad += (attack3_circle_rad_target - attack3_circle_rad)/15
 
 
     if current_attack == 1 and current_phase == 1:
+        boss_pos[0] += int((250 - boss_pos[0])/15)
+        boss_pos[1] += int((125 - boss_pos[1])/15)
+
         function = ""
         target_y += ((-height//2 - 10) - target_y)/4
-        target_x = 0
+        target_x += (-target_x)/4
         attack1(10)
         if not attack_1_start:
             attack2_start = True
             current_attack = 2
 
     elif current_attack == 2 and current_phase == 1:
+        boss_pos[0] += int((425 - boss_pos[0])/15)
+        boss_pos[1] += int((75 - boss_pos[1])/15)
         attack2()
         if not attack2_start:
             attack_1_start = True
@@ -395,7 +418,7 @@ while running:
 
 
 
-
+    boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
 
     boss_hp_text = bigger_font.render(f"HP: {boss_hp}",False,(0,0,0),(255,255,255))
     boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
@@ -453,7 +476,7 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEBUTTONDOWN and current_phase >= 1:
             all_bullets.append(Bullet(angle,bulletx,bullety,10,2,10))
         if event.type == pygame.KEYDOWN and current_phase >= 1:
             if event.key == pygame.K_SPACE:
