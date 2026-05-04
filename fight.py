@@ -11,6 +11,9 @@ size = width, height = 500,500
 
 al = "qwertyuiopasdfghjklzxcvbnm"
 
+
+player_in_iframe = False
+player_iframe_duration = 0
 angle = 0
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption("Desmos Bossfight!")
@@ -39,6 +42,7 @@ clock = pygame.time.Clock()
 
 gun_w, gun_h = 4,20
 all_bullets = []
+
 
 dash_cooldown = 0        
 dash_duration = 0          
@@ -135,15 +139,16 @@ def generate_random_number_attacks(amount,list):
         temporary_speed = 4
         list.append(Number(temporary_value,temporary_angle_deg,temp_x,temp_y,temporary_speed))
 
+player_surface = pygame.Surface(size, pygame.SRCALPHA)
 
 def draw_player(x,y,color):
-    pygame.draw.circle(screen,color,(x,y),player_rad)
-    pygame.draw.circle(screen,(0,0,0),(x,y),player_rad,3)
+    pygame.draw.circle(player_surface,color,(x,y),player_rad)
+    pygame.draw.circle(player_surface,(0,0,0),(x,y),player_rad,3)
 def draw_hands(x,y,angle,color):
-    pygame.draw.circle(screen,color,(int(23*math.cos(angle) + x), int(23*math.sin(angle) + y)) , 5)
-    pygame.draw.circle(screen,(0,0,0),(int(23*math.cos(angle) + x), int(23*math.sin(angle) + y)) , 5,2)
-    pygame.draw.circle(screen,color,(int(23*math.cos(angle+math.pi) + x), int(23*math.sin(angle+math.pi) + y)) , 5)
-    pygame.draw.circle(screen,(0,0,0),(int(23*math.cos(angle+math.pi) + x), int(23*math.sin(angle+math.pi) + y)) , 5,2)
+    pygame.draw.circle(player_surface,color,(int(23*math.cos(angle) + x), int(23*math.sin(angle) + y)) , 5)
+    pygame.draw.circle(player_surface,(0,0,0),(int(23*math.cos(angle) + x), int(23*math.sin(angle) + y)) , 5,2)
+    pygame.draw.circle(player_surface,color,(int(23*math.cos(angle+math.pi) + x), int(23*math.sin(angle+math.pi) + y)) , 5)
+    pygame.draw.circle(player_surface,(0,0,0),(int(23*math.cos(angle+math.pi) + x), int(23*math.sin(angle+math.pi) + y)) , 5,2)
 def draw_gun(x,y,angle):
     gun_surf = pygame.Surface((gun_w, gun_h), pygame.SRCALPHA)
     gun_surf.fill((40, 40, 40)) 
@@ -153,7 +158,7 @@ def draw_gun(x,y,angle):
     offset_vec.from_polar((gun_h / 2, math.degrees(angle - math.pi/2)))
     gun_center = (int(23* math.cos(angle) + x) + offset_vec.x, int(23* math.sin(angle) + y) + offset_vec.y)
     gun_rect = rotated_gun.get_rect(center=gun_center)
-    screen.blit(rotated_gun, gun_rect)
+    player_surface.blit(rotated_gun, gun_rect)
 
 
 def circle_rect_collide(circle_position, circle_radius, rect):
@@ -255,10 +260,8 @@ def attack2():
     elif attack2_start and currently_graphing:
         graph(function)
         graph_hitbox = pygame.mask.from_threshold(graph_surface,(150,0,0),(10,10,10,255))
-        player_surface = pygame.Surface((player_rad*2,player_rad*2),pygame.SRCALPHA)
-        pygame.draw.circle(player_surface, (240,216,144), (player_rad,player_rad), player_rad)
         circle_mask = pygame.mask.from_surface(player_surface)
-        offset = (player_pos[0] - player_rad , player_pos[1] - player_rad)
+        offset = (0,0)
         if graph_hitbox.overlap(circle_mask,offset):
                 player_hp -= 1
 
@@ -271,13 +274,15 @@ def death():
 
 
 
-    screen.fill((0,0,0))    
+    screen.fill((0,0,0))
+    player_surface.fill((0,0,0,0))    
     death_text = hyper_font.render(f"You Died!" , True , (255,255,255))
 
     death_text.set_alpha(death_text_opacity)
 
     draw_player(player_pos[0],player_pos[1],(255,255,255))
     draw_hands(player_pos[0],player_pos[1],angle,(255,255,255))
+    screen.blit(player_surface,(0,0))
 
     if min(60,death_text_frame) == 60:
         pygame.draw.circle(screen,(0,0,0),tuple(player_pos),death_text_frame/2-60)
@@ -305,8 +310,8 @@ current_angle = 0
 def draw_line(r,angle,start_delay,end_delay):
     global polar_index,currently_polaring,width,height,current_angle
     polar_surface.fill((0, 0, 0, 0))
-    POLAR_SPEED = 10
-    POLAR_DURATION = 90
+    POLAR_SPEED = 0.07
+    POLAR_DURATION = max(1, int(abs(angle) / POLAR_SPEED))
     if currently_polaring:
         
         total_time = start_delay + POLAR_DURATION + end_delay
@@ -341,7 +346,7 @@ random_angles_generation = [(math.radians(random.randint(-360,-60)) if random.ra
 polar_graph_index = 0
 temp_angle = 0
 def attack3():
-    global attack3_circle_rad , attack3_circle_rad_target, attack3_frame , target_x,currently_polaring,random_angles_generation , polar_graph_index , attack3_start , temp_angle
+    global attack3_circle_rad , attack3_circle_rad_target, attack3_frame , target_x,currently_polaring,random_angles_generation , polar_graph_index , attack3_start , temp_angle , player_in_iframe , player_hp , player_iframe_duration
     if attack3_start and not currently_polaring:
         attack3_frame += 1
         if attack3_frame < 120:
@@ -355,13 +360,25 @@ def attack3():
                 attack3_start = False
     elif attack3_start and currently_polaring:
         draw_line(attack3_circle_rad , temp_angle , 60 , 30)
-
+        line_hitbox = pygame.mask.from_threshold(polar_surface,(170,0,0),(10,10,10,255))
+        player_mask = pygame.mask.from_surface(player_surface)
+        offset = (0,0)
+        if line_hitbox.overlap(player_mask,offset):
+            if not player_in_iframe:
+                player_hp -= 15
+                player_iframe_duration = 90
+            player_in_iframe = True
 
 running = True
 
 while running:
     clock.tick(60)
     if current_phase >= 0 : screen.fill((255,255,255))
+    player_surface.fill((255,255,255,0))
+
+
+    player_iframe_duration -= (1 if player_iframe_duration > 0 else 0)
+    if player_iframe_duration == 0: player_in_iframe = False
 
 
 
@@ -371,11 +388,21 @@ while running:
     else: dash_cooldown_dx_target = 1
 
 
+    if player_in_iframe:
+        flash_alpha = int(77.5* math.cos(math.radians(player_iframe_duration * 16)) + 177.5)
+        player_col = (240, 216, 144, flash_alpha)
+    else:
+        player_col = (240, 216, 144, 255)
+
+
 
     dash_cooldown_dx += (25*dash_cooldown_dx_target - dash_cooldown_dx)/5
     attack3_circle_rad += (attack3_circle_rad_target - attack3_circle_rad)/15
 
 
+    draw_player(player_pos[0],player_pos[1],player_col)
+    draw_hands(player_pos[0],player_pos[1],angle,player_col)
+    draw_gun(player_pos[0],player_pos[1],angle)
 
     if current_attack == 1 and current_phase == 1:
         boss_pos[0] += int((250 - boss_pos[0])/5)
@@ -536,10 +563,7 @@ while running:
 
 
 
-    draw_player(player_pos[0],player_pos[1],player_col)
-    draw_hands(player_pos[0],player_pos[1],angle,player_col)
-    draw_gun(player_pos[0],player_pos[1],angle)
-
+    screen.blit(player_surface,(0,0))
 
 
     for item in number_attack_list:
