@@ -34,7 +34,7 @@ boss_image = pygame.transform.scale(boss_image , (75,75))
 pygame.display.set_icon(boss_image)
 boss_pos = [250,125]
 boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
-boss_hp = 2500
+boss_hp = 6500
 boss_hp_text = font.render(f"HP: {boss_hp}",False,(0,0,0),(255,255,255))
 boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
 
@@ -189,7 +189,7 @@ def attack1(amount):
 
 
 current_attack = 1
-chosen_functions = random.sample(list_of_function,1) #change to 5 later
+chosen_functions = random.sample(list_of_function,5)
 attack2_start = False
 axis_animation_tick = 0
 target_y = -height//2 - 10
@@ -244,6 +244,7 @@ def attack2():
     global axis_animation_tick
     global target_y
     global target_x
+    global player_col
     axis(width//2,target_y)
     if not currently_graphing and attack2_start:
         if axis_animation_tick < 200:
@@ -260,7 +261,7 @@ def attack2():
     elif attack2_start and currently_graphing:
         graph(function)
         graph_hitbox = pygame.mask.from_threshold(graph_surface,(150,0,0),(10,10,10,255))
-        circle_mask = pygame.mask.from_surface(player_surface)
+        circle_mask = pygame.mask.from_threshold(player_surface,player_col,(10,10,10,255))
         offset = (0,0)
         if graph_hitbox.overlap(circle_mask,offset):
                 player_hp -= 1
@@ -307,16 +308,20 @@ def death():
 polar_index = 0
 currently_polaring = False
 current_angle = 0
+current_radius = 0
 def draw_line(r,angle,start_delay,end_delay):
-    global polar_index,currently_polaring,width,height,current_angle
+    global polar_index,currently_polaring,width,height,current_angle,current_radius
     polar_surface.fill((0, 0, 0, 0))
-    POLAR_SPEED = 0.07
+    POLAR_SPEED = 0.05
     POLAR_DURATION = max(1, int(abs(angle) / POLAR_SPEED))
+    EXTRA_ANIMATION_TIME = 45
     if currently_polaring:
         
-        total_time = start_delay + POLAR_DURATION + end_delay
+        if polar_index == 0: current_radius = 0
 
+        total_time = start_delay + POLAR_DURATION + end_delay + EXTRA_ANIMATION_TIME
         if polar_index < start_delay:
+            current_radius += (r - current_radius)/10
             current_angle = 0
 
         if start_delay <= polar_index and polar_index < (start_delay + POLAR_DURATION):
@@ -325,11 +330,15 @@ def draw_line(r,angle,start_delay,end_delay):
 
         elif polar_index >= POLAR_DURATION + start_delay:
             current_angle = angle
+
+        if polar_index > total_time - EXTRA_ANIMATION_TIME and polar_index < total_time:
+            print("hi")
+            current_radius += (-current_radius)/12
         
-        
-        real_part = (r-5)*math.cos(current_angle) + width//2 
-        imaginary_part = (r-5)*math.sin(current_angle) + height//2 
-        pygame.draw.line(polar_surface,(170,0,0),(width//2,height//2),(real_part,imaginary_part),5)
+
+        real_part = (current_radius-5)*math.cos(current_angle) + width//2 
+        imaginary_part = (current_radius-5)*math.sin(current_angle) + height//2 
+        if current_radius > 4 : pygame.draw.line(polar_surface,(170,0,0),(width//2,height//2),(real_part,imaginary_part),5)
 
         if min(polar_index,total_time) >= total_time:
             polar_index = 0
@@ -345,12 +354,13 @@ attack3_frame = 0
 random_angles_generation = [(math.radians(random.randint(-360,-60)) if random.randint(0,1) == 0 else math.radians(random.randint(60,360))) for i in range(5)]
 polar_graph_index = 0
 temp_angle = 0
+progress = 500
 def attack3():
-    global attack3_circle_rad , attack3_circle_rad_target, attack3_frame , target_x,currently_polaring,random_angles_generation , polar_graph_index , attack3_start , temp_angle , player_in_iframe , player_hp , player_iframe_duration
+    global attack3_circle_rad , attack3_circle_rad_target, attack3_frame , target_x,currently_polaring,random_angles_generation , polar_graph_index , attack3_start , temp_angle , player_in_iframe , player_hp , player_iframe_duration , width, height, progress
     if attack3_start and not currently_polaring:
         attack3_frame += 1
-        if attack3_frame < 120:
-            pass
+        if attack3_frame < 180:
+           pass
         else:
             try:
                 temp_angle = random_angles_generation.pop()
@@ -359,15 +369,16 @@ def attack3():
                 attack3_frame = 0
                 attack3_start = False
     elif attack3_start and currently_polaring:
-        draw_line(attack3_circle_rad , temp_angle , 60 , 30)
+        draw_line(attack3_circle_rad , temp_angle , 60 , 60)
         line_hitbox = pygame.mask.from_threshold(polar_surface,(170,0,0),(10,10,10,255))
         player_mask = pygame.mask.from_surface(player_surface)
         offset = (0,0)
         if line_hitbox.overlap(player_mask,offset):
-            if not player_in_iframe:
-                player_hp -= 15
-                player_iframe_duration = 90
-            player_in_iframe = True
+            if not player_in_dash:
+                if not player_in_iframe:
+                    player_hp -= 15
+                    player_iframe_duration = 180
+                player_in_iframe = True
 
 running = True
 
@@ -389,7 +400,7 @@ while running:
 
 
     if player_in_iframe:
-        flash_alpha = int(77.5* math.cos(math.radians(player_iframe_duration * 16)) + 177.5)
+        flash_alpha = int(77.5* math.cos(math.radians(player_iframe_duration * 8)) + 177.5)
         player_col = (240, 216, 144, flash_alpha)
     else:
         player_col = (240, 216, 144, 255)
@@ -408,10 +419,9 @@ while running:
         boss_pos[0] += int((250 - boss_pos[0])/5)
         boss_pos[1] += int((125 - boss_pos[1])/5)
         attack3_circle_rad_target = math.sqrt(250**2 + 250**2) + 10
-        function = ""
         target_y += ((-height//2 - 10) - target_y)/4
         target_x += (-target_x)/4
-        attack1(1) #change to 30 later
+        attack1(30)
         if not attack_1_start:
             attack2_start = True
             current_attack = 2
@@ -465,7 +475,7 @@ while running:
         current_graph_text_rect = current_graph_text.get_rect(topleft=now_graphing_text_rect.bottomleft)
 
     if current_attack == 3 and current_phase == 1:
-        current_graph_text = super_font.render((f"re^i{-temp_angle}" if attack3_frame >= 120 else ""),True,(255,255,255),(0,0,0))
+        current_graph_text = super_font.render((f"re^i{-temp_angle}" if attack3_frame >= 180 else ""),True,(255,255,255),(0,0,0))
         current_graph_text_rect = current_graph_text.get_rect(topright=now_graphing_text_rect.bottomright)
 
 
@@ -549,7 +559,7 @@ while running:
         if item.move(0,0,width,height):
             all_bullets.remove(item)
         if item.bullet_rect.colliderect(boss_hitbox):
-            boss_hp -= 10
+            boss_hp -= random.randint(8,13)
             all_bullets.remove(item)
 
 
