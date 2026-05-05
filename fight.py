@@ -4,6 +4,7 @@ import os
 import math
 from bullet import Bullet
 from number_attack import Number
+from attack_damage_number import Value
 os.environ['SDL_AUDIODRIVER'] = 'dsp'
 
 pygame.init()
@@ -28,6 +29,10 @@ player_hp = 100
 player_hp_text = bigger_font.render(f"Your HP: {player_hp}",False,(255,255,255),(0,0,0))
 player_hp_text_rect = player_hp_text.get_rect(bottomleft = (0,height))
 player_col = (240, 216, 144)
+random_damage_value = 0
+random_damage_value_xpos = 0
+random_damage_value_ypos = 0
+all_damage_texts = []
 
 boss_image = pygame.image.load("desmoslogo.png").convert_alpha()
 boss_image = pygame.transform.scale(boss_image , (75,75))
@@ -559,9 +564,13 @@ while running:
         if item.move(0,0,width,height):
             all_bullets.remove(item)
         if item.bullet_rect.colliderect(boss_hitbox):
-            boss_hp -= random.randint(8,13)
+            random_damage_value = random.randint(8,13)
+            random_damage_value_xpos = random.randint(10*boss_pos[0] - 375 , 10*boss_pos[0] + 375)//10
+            random_damage_value_ypos = random.randint(10*boss_pos[1] - 375 , 10*boss_pos[1] + 375)//10 #since the distance from the edge to the center is 37.5, we multiply everything by 10 to get integers and divide by 10 later
+            boss_hp -= random_damage_value
+            all_damage_texts.append(Value(random_damage_value , random_damage_value_xpos , random_damage_value_xpos , random_damage_value_ypos , random_damage_value_ypos+20 ,24, 10 , 45))
             all_bullets.remove(item)
-
+    
 
 
     screen.blit(boss_image,boss_hitbox)
@@ -574,6 +583,11 @@ while running:
 
 
     screen.blit(player_surface,(0,0))
+
+    for item in all_damage_texts:
+        item.draw(screen)
+        if item.move():
+            all_damage_texts.remove(item)
 
 
     for item in number_attack_list:
