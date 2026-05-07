@@ -5,10 +5,19 @@ import math
 from bullet import Bullet
 from number_attack import Number
 from attack_damage_number import Value
-os.environ['SDL_AUDIODRIVER'] = 'dsp'
+#os.environ['SDL_AUDIODRIVER'] = 'dsp'
 
 pygame.init()
 size = width, height = 500,500
+
+pygame.mixer.init()
+PHASE_1_MUSIC = "animation_warrior_theme.mp3"
+PHASE_2_MUSIC = "il-vento-d'oro.mp3"
+phase_music = PHASE_1_MUSIC
+pygame.mixer.music.load(phase_music)
+music_started = False
+
+death_sfx = pygame.mixer.Sound("death_sfx.mp3")
 
 al = "qwertyuiopasdfghjklzxcvbnm"
 
@@ -64,7 +73,7 @@ player_direction = 0
 player_in_dash = False
 
 
-list_of_function = ["5sin(5x)","1/sin(2x)","1/tan(1.2x)","(abs(x)/x)tan(x)^2","-2xtan(2x)","1/x","2sin(2x)","sin(1/(0.02x))/(0.05x)","(abs(cos(x))/cos(x))tan(2x)^2","xsin(x)","xcos(x^2)","2x^3 - 0.5x^2 + x - 2","x/cos(abs(x)^abs(x)) + x","e^-x^2","2xcos(e^abs(2x-2))/cos(x-1)","4xsin(xe^x)"]
+list_of_function = ["5sin(5x)","1/sin(2x)","1/tan(1.2x)","(abs(x)/x)tan(x)^2","-2xtan(2x)","1/x","2sin(2x)","sin(1/(0.02x))/(0.05x)","(abs(cos(x))/cos(x))tan(2x)^2","xsin(x)","xcos(x^2)","x^3 - 4x^2 + x - 2","x/cos(abs(x)^abs(x)) + x","e^-x^2","2xcos(e^abs(2x-2))/cos(x-1)","4xsin(xe^x)"]
 random.shuffle(list_of_function)
 function = ""
 graph_surface = pygame.Surface(size, pygame.SRCALPHA)
@@ -214,6 +223,8 @@ def init_cutscene():
     global cutscene_frame
     global current_phase
     global dialouge1
+    global phase_1_music
+    global music_started
     dialouge1 = bigger_font.render(f"",True,(0,0,0))
     dialouge1_rect = dialouge1.get_rect(topleft = boss_hitbox.topright)
     if max(0,min(cutscene_frame,30)) == cutscene_frame:
@@ -234,7 +245,13 @@ def init_cutscene():
 
     cutscene_frame += 1
     screen.blit(dialouge1,dialouge1_rect)
+
+
+
     if cutscene_frame == 330:
+        if not music_started:
+            pygame.mixer.music.play(loops=-1)
+            music_started = True
         current_phase = 1
 
 
@@ -275,7 +292,8 @@ def attack2():
 death_text_opacity = 0
 death_text_frame = 0
 def death():
-    global current_phase , death_text_opacity , death_text_frame , angle
+    global current_phase , death_text_opacity , death_text_frame , angle , death_sfx
+    pygame.mixer.music.stop()
     current_phase = -1
 
 
@@ -291,6 +309,9 @@ def death():
     screen.blit(player_surface,(0,0))
 
     if min(60,death_text_frame) == 60:
+
+        if death_text_frame == 60:
+            death_sfx.play()
         pygame.draw.circle(screen,(0,0,0),tuple(player_pos),death_text_frame/2-60)
 
 
@@ -326,7 +347,7 @@ def draw_line(r,angle,start_delay,end_delay):
 
         total_time = start_delay + POLAR_DURATION + end_delay + EXTRA_ANIMATION_TIME
         if polar_index < start_delay:
-            current_radius += (r - current_radius)/10
+            current_radius += (r - current_radius)/20
             current_angle = 0
 
         if start_delay <= polar_index and polar_index < (start_delay + POLAR_DURATION):
@@ -374,7 +395,7 @@ def attack3():
                 attack3_frame = 0
                 attack3_start = False
     elif attack3_start and currently_polaring:
-        draw_line(attack3_circle_rad , temp_angle , 60 , 60)
+        draw_line(attack3_circle_rad , temp_angle , 90 ,  60)
         line_hitbox = pygame.mask.from_threshold(polar_surface,(170,0,0),(10,10,10,255))
         player_mask = pygame.mask.from_surface(player_surface)
         offset = (0,0)
@@ -452,7 +473,7 @@ while running:
         if not attack3_start:
             attack_1_start = True
             polar_surface.fill((0,0,0,0))
-            random_angles_generation = [math.radians(random.randint(-360,360)) for i in range(5)]
+            random_angles_generation = [(math.radians(random.randint(-360,-60)) if random.randint(0,1) == 0 else math.radians(random.randint(60,360))) for i in range(5)]
             current_attack = 1
 
 
