@@ -3,7 +3,7 @@ import math
 
 
 class Value:
-    def __init__(self,value,startx,targetx,starty,targety,size,speed,duration):
+    def __init__(self,value,startx,targetx,starty,targety,size,speed,duration,color):
         self.value = value
         self.x = startx
         self.targetx = targetx
@@ -11,8 +11,9 @@ class Value:
         self.y = starty
         self.size = size
         self.speed = speed
+        self.color = color
         self.font = pygame.font.Font("Roboto.ttf", self.size)
-        self.text = self.font.render(f"{self.value}",True,(200,0,0))
+        self.text = self.font.render(f"{self.value}",True,self.color)
         self.hitbox = self.text.get_rect(center=(self.x, self.y))
         self.alpha = 255
         self.duration = duration

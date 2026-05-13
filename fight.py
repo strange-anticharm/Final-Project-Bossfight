@@ -20,6 +20,7 @@ music_started = False
 death_sfx = pygame.mixer.Sound("death_sfx.mp3")
 damage_sfx = pygame.mixer.Sound("damage_sfx.mp3")
 boss_hit_sfx = pygame.mixer.Sound("boss_hit_sfx.mp3")
+ping_sfx = pygame.mixer.Sound("ding.mp3")
 
 al = "qwertyuiopasdfghjklzxcvbnm"
 
@@ -53,7 +54,7 @@ boss_impact_frame = pygame.transform.scale(boss_impact_frame , (75,75))
 boss_impact_frame_rect = boss_impact_frame.get_rect(center=boss_pos)
 pygame.display.set_icon(boss_image)
 boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
-boss_hp = 65#00
+boss_hp = 6500
 boss_hp_text = font.render(f"HP: {boss_hp}",False,(0,0,0),(255,255,255))
 boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
 
@@ -365,7 +366,6 @@ def draw_line(r,angle,start_delay,end_delay):
             current_angle = angle
 
         if polar_index > total_time - EXTRA_ANIMATION_TIME and polar_index < total_time:
-            print("hi")
             current_radius += (-current_radius)/12
         
 
@@ -432,8 +432,13 @@ boss_impact_frame_opacity = 255
 surface_opacity_p2 = 255
 cutscene_frame_phase2 = 0
 boss_hp_text_alpha = 0
+shield_surface = pygame.Surface(size,pygame.SRCALPHA)
+shield_target_size = math.dist(tuple(boss_pos),boss_hitbox.topleft) + 10
+SHIELD_INIT = math.dist(tuple(boss_pos),tuple((a + b) / 2 for a, b in zip(boss_hitbox.topleft, boss_hitbox.bottomleft)))
+shield_current_size = SHIELD_INIT
+shield_hp = 5000
 def cutscene_phase2():
-    global cutscene_frame
+    global cutscene_frame , in_cutscene
     global current_phase
     global dialouge1 , dialouge1_rect
     global phase_music
@@ -455,6 +460,9 @@ def cutscene_phase2():
     global boss_hp_text_alpha
     global angle
     global dialouge1
+    global shield_target_size
+    global shield_current_size
+    global ping_sfx
 
     if cutscene_frame_phase2 == 0:
         dialouge1 = bigger_font.render(f"",True,(0,0,0))
@@ -468,7 +476,7 @@ def cutscene_phase2():
 
     try:
         last_value_attack = all_damage_texts[-1].value
-        last_attack = Value(last_value_attack + boss_hp,boss_pos[0],boss_pos[0],boss_pos[1],boss_pos[1] + 40,48,80,180)
+        last_attack = Value(last_value_attack + boss_hp,boss_pos[0],boss_pos[0],boss_pos[1],boss_pos[1] + 40,48,80,180,(200,0,0))
         boss_hit_sfx.play()
         pygame.mixer.music.stop()
         phase_music = PHASE_2_MUSIC
@@ -528,9 +536,19 @@ def cutscene_phase2():
         if cutscene_frame_phase2 >= 255 + 40 + 255//5+ 120 + 40 + 60 and cutscene_frame_phase2 < 255 + 40+ 255//5 + 120 + 40+ 180:
             dialouge1 = bigger_font.render(f"<(how are you\neven alive)",True,(0,0,0))
             dialouge1_rect = dialouge1.get_rect(topleft = (player_pos[0] + player_rad , player_pos[1] - player_rad))
-        if cutscene_frame_phase2 >= 255 + 40+ 255//5 + 120 + 40 + 180 and cutscene_frame_phase2 < 255 + 40+ 255//5 + 120 + 40+ 360:
-            dialouge1 = bigger_font.render(f"<(idk either bro)",True,(0,0,0))
+        if cutscene_frame_phase2 >= 255 + 40+ 255//5 + 120 + 40 + 180 and cutscene_frame_phase2 < 255 + 40+ 255//5 + 120 + 40+ 300:
+            dialouge1 = bigger_font.render(f"<(im locked)",True,(0,0,0))
             dialouge1_rect = dialouge1.get_rect(topleft = boss_hitbox.topright)
+        if cutscene_frame_phase2 >= 255 + 40+ 255//5 + 120 + 40 + 300 and cutscene_frame_phase2 < 255 + 40+ 255//5 + 120 + 40+ 420:
+            if cutscene_frame_phase2 == 255 + 40+ 255//5 + 120 + 40 + 300:
+                ping_sfx.play()
+            dialouge1 = bigger_font.render(f"",True,(0,0,0))
+            dialouge1_rect = dialouge1.get_rect(topleft = boss_hitbox.topright)
+            shield_current_size += (shield_target_size - shield_current_size)/20
+        if cutscene_frame_phase2 >= 255 + 40+ 255//5 + 120 + 40+ 420 + 175:
+            in_cutscene = False
+            current_phase = 2
+            boss_hp = 1
 
 
 
@@ -558,11 +576,13 @@ while running:
     clock.tick(60)
     if current_phase >= 0 : screen.fill((255,255,255))
     player_surface.fill((255,255,255,0))
-
+    shield_surface.fill((255,255,255,0))
 
     player_iframe_duration -= (1 if player_iframe_duration > 0 else 0)
     if player_iframe_duration == 0: player_in_iframe = False
+          
 
+    if current_phase == 2: shield_current_size = ((shield_target_size - (SHIELD_INIT + 2))*shield_hp//5000) + SHIELD_INIT + 2
 
 
     if dash_cooldown < 300:
@@ -623,10 +643,13 @@ while running:
             current_attack = 1
 
 
+    shield_hp_text = bigger_font.render(f"Shield HP: {shield_hp}" , True , (255,255,255) , (0,0,0))
+    shield_hp_text_rect = shield_hp_text.get_rect(topright = (500,0))
+
     boss_impact_frame_rect = boss_impact_frame.get_rect(center=boss_pos)
     boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
 
-    boss_hp_text = bigger_font.render(f"HP: {boss_hp if current_phase < 1.5 else 'ε'}",False,(0,0,0),(255,255,255))
+    boss_hp_text = bigger_font.render(f"HP: {boss_hp if current_phase < 1.5 else 'ε'}",False,(0,0,0))
     boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
 
     player_hp_text = bigger_font.render(f"Your HP: {player_hp}",False,(255,255,255),(0,0,0))
@@ -664,10 +687,13 @@ while running:
     bulletx,bullety = (int(23* math.cos(angle) + player_pos[0]) + offset_vec.x, int(23* math.sin(angle) + player_pos[1]) + offset_vec.y)
     
 
+    if current_phase > 1: pygame.draw.aacircle(shield_surface,(0,255,255,255//2),tuple(boss_pos),shield_current_size)
+
 
     axis(width//2,target_y)
     screen.blit(graph_surface, (0, 0))
     screen.blit(polar_surface, (0, 0))
+    screen.blit(shield_surface,(0,0))
     pygame.draw.circle(screen,(0,0,0),(width//2,height//2),attack3_circle_rad,10)
 
 
@@ -698,7 +724,7 @@ while running:
         player_pos[0] = max(player_rad, min(width - player_rad, new_x))
         player_pos[1] = max(player_rad, min(height - player_rad, new_y))
     else:
-        if current_phase == 1:
+        if current_phase == 1 or current_phase == 2:
             player_in_dash = False
             pressed = pygame.key.get_pressed()
             if pressed[pygame.K_w]:
@@ -732,12 +758,19 @@ while running:
         item.draw(screen)
         if item.move(0,0,width,height):
             all_bullets.remove(item)
-        if item.bullet_rect.colliderect(boss_hitbox):
+
+        if item.bullet_rect.colliderect(boss_hitbox) and current_phase == 1:
             random_damage_value = random.randint(8,13)
             random_damage_value_xpos = random.randint(10*boss_pos[0] - 375 , 10*boss_pos[0] + 375)//10
             random_damage_value_ypos = random.randint(10*boss_pos[1] - 375 , 10*boss_pos[1] + 375)//10 #since the distance from the edge to the center is 37.5, we multiply everything by 10 to get integers and divide by 10 later
             boss_hp -= random_damage_value
-            all_damage_texts.append(Value(random_damage_value , random_damage_value_xpos , random_damage_value_xpos , random_damage_value_ypos , random_damage_value_ypos+20 ,24, 10 , 45))
+            all_damage_texts.append(Value(random_damage_value , random_damage_value_xpos , random_damage_value_xpos , random_damage_value_ypos , random_damage_value_ypos+20 ,24, 10 , 45 , (200,0,0)))
+            all_bullets.remove(item)
+        elif current_phase == 2 and circle_rect_collide(tuple(boss_pos),shield_current_size,item.bullet_rect):
+            shield_hp -= 50 # change to 10 later
+            random_damage_value_xpos = random.randint(10*boss_pos[0] - 375 , 10*boss_pos[0] + 375)//10
+            random_damage_value_ypos = random.randint(10*boss_pos[1] - 375 , 10*boss_pos[1] + 375)//10
+            all_damage_texts.append(Value(0 , random_damage_value_xpos , random_damage_value_xpos , random_damage_value_ypos , random_damage_value_ypos+20 ,24, 10 , 45 , (0,230,255)))
             all_bullets.remove(item)
     
 
@@ -748,7 +781,7 @@ while running:
     screen.blit(dash_cooldown_text,dash_cooldown_text_rect)
     screen.blit(now_graphing_text,now_graphing_text_rect)
     screen.blit(current_graph_text,current_graph_text_rect)
-
+    if current_phase == 2: screen.blit(shield_hp_text,shield_hp_text_rect)
 
 
     screen.blit(player_surface,(0,0))
@@ -774,8 +807,8 @@ while running:
         init_cutscene()
     if player_hp <= 0:
         death()
-    if boss_hp <= 0:
-        cutscene_phase2()
+    if boss_hp <= 0 and current_phase < 2:
+            cutscene_phase2()
 
 
     pygame.display.flip()
