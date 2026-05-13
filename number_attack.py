@@ -15,6 +15,9 @@ class Number:
         self.rect = self.display.get_rect(center=(self.x,self.y))
         self.hitbox = self.text.get_rect(center=(self.x, self.y))
 
+    def __str__(self):
+        return self.value
+
     def move(self):
         self.x += self.speed*math.cos(math.radians(self.angle))
         self.y += self.speed*math.sin(math.radians(self.angle))

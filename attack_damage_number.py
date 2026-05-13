@@ -14,6 +14,7 @@ class Value:
         self.font = pygame.font.Font("Roboto.ttf", self.size)
         self.text = self.font.render(f"{self.value}",True,(200,0,0))
         self.hitbox = self.text.get_rect(center=(self.x, self.y))
+        self.alpha = 255
         self.duration = duration
         self.increment = 0
 
@@ -22,7 +23,10 @@ class Value:
         self.x += (self.targetx - self.x)/self.speed
         self.increment += 1
         self.hitbox = self.text.get_rect(center=(self.x, self.y))
-        if self.increment >= self.duration:
+        self.text.set_alpha(self.alpha)
+        if self.increment >= self.duration and self.alpha > 0:
+            self.alpha -= 5
+        if self.alpha == 0:
             return True
 
     def draw(self,canvas):

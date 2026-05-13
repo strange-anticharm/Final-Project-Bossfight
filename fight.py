@@ -18,6 +18,8 @@ pygame.mixer.music.load(phase_music)
 music_started = False
 
 death_sfx = pygame.mixer.Sound("death_sfx.mp3")
+damage_sfx = pygame.mixer.Sound("damage_sfx.mp3")
+boss_hit_sfx = pygame.mixer.Sound("boss_hit_sfx.mp3")
 
 al = "qwertyuiopasdfghjklzxcvbnm"
 
@@ -43,12 +45,15 @@ random_damage_value_xpos = 0
 random_damage_value_ypos = 0
 all_damage_texts = []
 
+boss_pos = [250,125]
 boss_image = pygame.image.load("desmoslogo.png").convert_alpha()
 boss_image = pygame.transform.scale(boss_image , (75,75))
+boss_impact_frame = pygame.image.load("desmos_impact_frame.png").convert_alpha()
+boss_impact_frame = pygame.transform.scale(boss_impact_frame , (75,75))
+boss_impact_frame_rect = boss_impact_frame.get_rect(center=boss_pos)
 pygame.display.set_icon(boss_image)
-boss_pos = [250,125]
 boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
-boss_hp = 6500
+boss_hp = 65#00
 boss_hp_text = font.render(f"HP: {boss_hp}",False,(0,0,0),(255,255,255))
 boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
 
@@ -267,6 +272,7 @@ def attack2():
     global target_y
     global target_x
     global player_col
+    global current_phase
     axis(width//2,target_y)
     if not currently_graphing and attack2_start:
         if axis_animation_tick < 200:
@@ -286,6 +292,7 @@ def attack2():
         circle_mask = pygame.mask.from_threshold(player_surface,player_col,(10,10,10,255))
         offset = (0,0)
         if graph_hitbox.overlap(circle_mask,offset):
+                if current_phase != -1: damage_sfx.play()
                 player_hp -= 1
 
 
@@ -383,6 +390,7 @@ temp_angle = 0
 progress = 500
 def attack3():
     global attack3_circle_rad , attack3_circle_rad_target, attack3_frame , target_x,currently_polaring,random_angles_generation , polar_graph_index , attack3_start , temp_angle , player_in_iframe , player_hp , player_iframe_duration , width, height, progress
+    global current_phase
     if attack3_start and not currently_polaring:
         attack3_frame += 1
         if attack3_frame < 180:
@@ -403,8 +411,146 @@ def attack3():
             if not player_in_dash:
                 if not player_in_iframe:
                     player_hp -= 15
+                    if current_phase != -1 and isinstance(current_phase,int): damage_sfx.play()
                     player_iframe_duration = 180
                 player_in_iframe = True
+
+def reset_phase1():
+    global attack_1_start,attack2_start,attack3_start,attack3_circle_rad_target,target_y,number_attack_list
+    attack3_start = False
+    attack2_start = False
+    attack_1_start = False
+    graph_surface.fill((0,0,0,0))
+    polar_surface.fill((0,0,0,0))
+    number_attack_list = []
+    attack3_circle_rad_target = math.sqrt(250**2 + 250**2) + 10
+    target_y += ((-height//2 - 10) - target_y)/4
+
+last_value_attack = ""
+last_attack = ""
+boss_impact_frame_opacity = 255 
+surface_opacity_p2 = 255
+cutscene_frame_phase2 = 0
+boss_hp_text_alpha = 0
+def cutscene_phase2():
+    global cutscene_frame
+    global current_phase
+    global dialouge1 , dialouge1_rect
+    global phase_music
+    global music_started
+    global boss_hp
+    global all_damage_texts
+    global all_bullets
+    global last_value_attack
+    global boss_pos , player_pos
+    global PHASE_2_MUSIC
+    global boss_impact_frame_rect
+    global boss_impact_frame
+    global last_attack
+    global boss_hit_sfx
+    global boss_impact_frame_opacity
+    global size
+    global surface_opacity_p2
+    global cutscene_frame_phase2
+    global boss_hp_text_alpha
+    global angle
+    global dialouge1
+
+    if cutscene_frame_phase2 == 0:
+        dialouge1 = bigger_font.render(f"",True,(0,0,0))
+        dialouge1_rect = dialouge1.get_rect(topleft = boss_hitbox.topright)
+
+    new_surface = pygame.Surface(size,pygame.SRCALPHA)
+
+    boss_hp_text = bigger_font.render(f"HP: ε",True,(255,255,255))
+    boss_hp_text.set_alpha(boss_hp_text_alpha)
+    boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
+
+    try:
+        last_value_attack = all_damage_texts[-1].value
+        last_attack = Value(last_value_attack + boss_hp,boss_pos[0],boss_pos[0],boss_pos[1],boss_pos[1] + 40,48,80,180)
+        boss_hit_sfx.play()
+        pygame.mixer.music.stop()
+        phase_music = PHASE_2_MUSIC
+    except:
+        pass
+
+    reset_phase1()
+
+    current_phase = 1.5
+    reset_phase1()
+    all_damage_texts.clear()
+    all_bullets.clear()
+    new_surface.fill((0,0,0,surface_opacity_p2))
+    screen.blit(new_surface,(0,0))
+
+
+
+    screen.blit(boss_impact_frame,boss_impact_frame_rect)
+    screen.blit(boss_hp_text,boss_hp_text_rect)
+    boss_impact_frame.set_alpha(boss_impact_frame_opacity)
+    boss_hp_text.set_alpha(boss_hp_text_alpha)
+
+    try:
+        last_attack.draw(screen)
+        if last_attack.move():
+            del last_attack
+    except:
+        cutscene_frame_phase2 += 1
+
+
+    if cutscene_frame_phase2 > 0 and 255 > cutscene_frame_phase2:
+        boss_impact_frame_opacity -= 1
+    if cutscene_frame_phase2 == 265:
+            pygame.mixer.music.load(phase_music)
+            pygame.mixer.music.play(-1)
+    if cutscene_frame_phase2 >= 255 + 40 and cutscene_frame_phase2 < 255 + 40 + 120:
+        player_pos = [250,250]
+        boss_pos = [250,125]
+        angle = 0
+        boss_impact_frame_opacity = 255
+        boss_hp_text_alpha = 255
+
+    if cutscene_frame_phase2 >= 255 + 40 + 120 and  surface_opacity_p2 > 0 and boss_hp_text_alpha > 0 and boss_impact_frame_opacity > 0:
+        screen.blit(boss_hp_text,boss_hp_text_rect)
+        if surface_opacity_p2 > 0:
+            surface_opacity_p2 -= 5 
+        if boss_hp_text_alpha > 0:
+            boss_hp_text_alpha -= 5
+        if boss_impact_frame_opacity > 0:
+            boss_impact_frame_opacity -= 5
+
+    if surface_opacity_p2 == 0 and boss_hp_text_alpha == 0 and boss_impact_frame_opacity == 0:
+        screen.blit(dialouge1,dialouge1_rect)
+        if cutscene_frame_phase2 >= 255 + 40 + 120 + 40 + 255//5 and cutscene_frame_phase2 < 255 + 255//5 + 40 + 120 + 40+ 60:
+            dialouge1 = bigger_font.render(f"<(bro what)",True,(0,0,0))
+            dialouge1_rect = dialouge1.get_rect(topleft = (player_pos[0] + player_rad , player_pos[1] - player_rad))
+        if cutscene_frame_phase2 >= 255 + 40 + 255//5+ 120 + 40 + 60 and cutscene_frame_phase2 < 255 + 40+ 255//5 + 120 + 40+ 180:
+            dialouge1 = bigger_font.render(f"<(how are you\neven alive)",True,(0,0,0))
+            dialouge1_rect = dialouge1.get_rect(topleft = (player_pos[0] + player_rad , player_pos[1] - player_rad))
+        if cutscene_frame_phase2 >= 255 + 40+ 255//5 + 120 + 40 + 180 and cutscene_frame_phase2 < 255 + 40+ 255//5 + 120 + 40+ 360:
+            dialouge1 = bigger_font.render(f"<(idk either bro)",True,(0,0,0))
+            dialouge1_rect = dialouge1.get_rect(topleft = boss_hitbox.topright)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 running = True
 
@@ -477,10 +623,10 @@ while running:
             current_attack = 1
 
 
-
+    boss_impact_frame_rect = boss_impact_frame.get_rect(center=boss_pos)
     boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
 
-    boss_hp_text = bigger_font.render(f"HP: {boss_hp}",False,(0,0,0),(255,255,255))
+    boss_hp_text = bigger_font.render(f"HP: {boss_hp if current_phase < 1.5 else 'ε'}",False,(0,0,0),(255,255,255))
     boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
 
     player_hp_text = bigger_font.render(f"Your HP: {player_hp}",False,(255,255,255),(0,0,0))
@@ -495,21 +641,23 @@ while running:
     if current_attack == 1 and current_phase == 1:
         current_graph_text = super_font.render(f"{function}",True,(255,255,255),(0,0,0))
         current_graph_text_rect = current_graph_text.get_rect(bottomright=(0,0))
-
-    if current_attack == 2 and current_phase == 1:
+    elif current_attack == 2 and current_phase == 1:
         current_graph_text = super_font.render(f"{function}",True,(255,255,255),(0,0,0))
         current_graph_text_rect = current_graph_text.get_rect(topleft=now_graphing_text_rect.bottomleft)
-
-    if current_attack == 3 and current_phase == 1:
+    elif current_attack == 3 and current_phase == 1:
         current_graph_text = super_font.render((f"re^i{-temp_angle}" if attack3_frame >= 180 else ""),True,(255,255,255),(0,0,0))
         current_graph_text_rect = current_graph_text.get_rect(topright=now_graphing_text_rect.bottomright)
-
+    else:
+        current_graph_text = super_font.render(f"{function}",True,(255,255,255),(0,0,0))
+        current_graph_text_rect = current_graph_text.get_rect(bottomright=(0,0))
+        now_graphing_text = bigger_font.render(f"Currently Graphing: " , True,(255,255,255),(0,0,0))
+        now_graphing_text_rect = now_graphing_text.get_rect(bottomright=(0,0))
 
 
     mousex,mousey = pygame.mouse.get_pos()
     dx = mousex - player_pos[0]
     dy = mousey - player_pos[1]
-    if current_phase >= 1: angle = (math.atan2(dy, dx) + math.pi/2)
+    if current_phase >= 1 and isinstance(current_phase,int): angle = (math.atan2(dy, dx) + math.pi/2)
 
     offset_vec = pygame.math.Vector2(0, 0)
     offset_vec.from_polar((gun_h / 2, math.degrees(angle - math.pi/2)))
@@ -527,9 +675,9 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.MOUSEBUTTONDOWN and current_phase >= 1:
+        if event.type == pygame.MOUSEBUTTONDOWN and current_phase >= 1 and isinstance(current_phase,int):
             all_bullets.append(Bullet(angle,bulletx,bullety,10,2,10))
-        if event.type == pygame.KEYDOWN and current_phase >= 1:
+        if event.type == pygame.KEYDOWN and current_phase >= 1 and isinstance(current_phase,int):
             if event.key == pygame.K_SPACE:
                 all_bullets.append(Bullet(angle,bulletx,bullety,10,2,10))
             if event.key == pygame.K_q:
@@ -617,6 +765,7 @@ while running:
         if circle_rect_collide(tuple(player_pos),player_rad,item.hitbox):
             if not player_in_dash:
                 number_attack_list.remove(item)
+                if current_phase != -1 and isinstance(current_phase,int): damage_sfx.play()
                 player_hp -= item.value
 
 
@@ -625,7 +774,8 @@ while running:
         init_cutscene()
     if player_hp <= 0:
         death()
-
+    if boss_hp <= 0:
+        cutscene_phase2()
 
 
     pygame.display.flip()
