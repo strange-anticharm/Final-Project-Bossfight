@@ -5,6 +5,7 @@ import math
 from bullet import Bullet
 from number_attack import Number
 from attack_damage_number import Value
+from summon_axis import Axis
 #os.environ['SDL_AUDIODRIVER'] = 'dsp'
 
 pygame.init()
@@ -40,7 +41,7 @@ player_rad = 20
 player_hp = 100
 player_hp_text = bigger_font.render(f"Your HP: {player_hp}",False,(255,255,255),(0,0,0))
 player_hp_text_rect = player_hp_text.get_rect(bottomleft = (0,height))
-player_col = (240, 216, 144)
+player_col = (240, 216, 144) 
 random_damage_value = 0
 random_damage_value_xpos = 0
 random_damage_value_ypos = 0
@@ -54,7 +55,7 @@ boss_impact_frame = pygame.transform.scale(boss_impact_frame , (75,75))
 boss_impact_frame_rect = boss_impact_frame.get_rect(center=boss_pos)
 pygame.display.set_icon(boss_image)
 boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
-boss_hp = 6500
+boss_hp = 65
 boss_hp_text = font.render(f"HP: {boss_hp}",False,(0,0,0),(255,255,255))
 boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
 
@@ -463,6 +464,7 @@ def cutscene_phase2():
     global shield_target_size
     global shield_current_size
     global ping_sfx
+    global current_attack , attack_4_start
 
     if cutscene_frame_phase2 == 0:
         dialouge1 = bigger_font.render(f"",True,(0,0,0))
@@ -548,9 +550,99 @@ def cutscene_phase2():
         if cutscene_frame_phase2 >= 255 + 40+ 255//5 + 120 + 40+ 420 + 175:
             in_cutscene = False
             current_phase = 2
+            current_attack = 4
+            attack_4_start = True
             boss_hp = 1
 
 
+
+
+def generate_random_axis(minx,maxx,miny,maxy):
+    axisx = random.randint(minx,maxx)
+    axisy = random.randint(miny,maxy)
+    size = 200
+    return Axis(axisx,axisy,size,5,5)
+
+vc_index = 0
+current_vector = 0
+axis_test = Axis(250,250,100,20,5)
+list_of_vectors = [[0,0],[0,0],[0,0],[0,0],[0,0]]
+list_of_positions = [[0,0],[0,0],[0,0],[0,0],[0,0]]
+vector_surface = pygame.Surface(size,pygame.SRCALPHA)
+vector_text = ""
+def vector_attack():
+    global vc_index
+    global axis_test
+    global width,height
+    global list_of_vectors , list_of_positions
+    global vector_surface , player_surface
+    global current_vector
+    global bigger_font
+    global vector_text
+    global player_in_iframe , player_in_dash , player_iframe_duration , player_hp , player_pos
+    vector_surface.fill((0,0,0,0))
+    current_vector_text = bigger_font.render(vector_text,True,(0,0,0),(255,255,255))
+    current_vector_text_rect = current_vector_text.get_rect(center = (axis_test.x,(axis_test.y - axis_test.size - 10) if (axis_test.y - axis_test.size - 10 - 5) > 0 else (axis_test.y + axis_test.size + 10)))
+    elapsed = vc_index - 60
+    num_lines = elapsed // 60 + 1
+    if num_lines < 5:
+        vector_text = f"v = {list_of_vectors[num_lines][0]}i + {-list_of_vectors[num_lines][1]}j"
+    else:
+        vector_text = ""
+    if vc_index == 0:
+        axis_test = Axis(player_pos[0],player_pos[1],200,10,5)
+        for i in range(5):
+            list_of_vectors[i] = [random.randint(-5,5),random.randint(-5,5)]
+            list_of_positions[i] = [axis_test.x,axis_test.y]
+
+    if vc_index != 0:
+        axis_test.draw(screen)
+        vector_surface.blit(current_vector_text,current_vector_text_rect)
+
+    if vc_index < 60 and vc_index != 0:
+        axis_test.extend()
+    if vc_index > 60 and vc_index < 60*6:
+        
+        for i in range(min(num_lines, 5)):
+            vx, vy = list_of_vectors[i]
+            scale = axis_test.size//5
+            end_x = axis_test.x + vx * scale
+            end_y = axis_test.y + vy * scale
+            list_of_positions[i][0] += (end_x - list_of_positions[i][0])/30
+            list_of_positions[i][1] += (end_y - list_of_positions[i][1])/30
+            pygame.draw.line(vector_surface, (200, 0, 0,255),
+                             (axis_test.x, axis_test.y),
+                             tuple(list_of_positions[i]), 3)
+    if vc_index > 60*6:
+        axis_test.retract()
+
+    player_hitbox = pygame.mask.from_surface(player_surface)
+    vector_hitbox = pygame.mask.from_threshold(vector_surface,(200,0,0,255),(1,1,1,1))
+    if player_hitbox.overlap(vector_hitbox,(0,0)):
+            if not player_in_dash:
+                if not player_in_iframe:
+                    player_hp -= 15
+                    if current_phase != -1 and isinstance(current_phase,int): damage_sfx.play()
+                    player_iframe_duration = 180
+                player_in_iframe = True
+    
+    vc_index += 1
+
+
+attack_4_index = 0
+attack_4_start = False
+def attack4():
+    global attack_4_index
+    global attack_4_start
+    global vc_index
+    if attack_4_index < 5 and attack_4_start:
+        vector_attack()
+        if vc_index > 60*7:
+            vc_index = -1
+            attack_4_index += 1
+    else:
+        attack_4_start = False
+        attack_4_index = 0
 
 
 
@@ -582,7 +674,7 @@ while running:
     if player_iframe_duration == 0: player_in_iframe = False
           
 
-    if current_phase == 2: shield_current_size = ((shield_target_size - (SHIELD_INIT + 2))*shield_hp//5000) + SHIELD_INIT + 2
+    if current_phase == 2: shield_current_size = ((10)*shield_hp//5000) + shield_target_size - 10
 
 
     if dash_cooldown < 300:
@@ -641,6 +733,13 @@ while running:
             polar_surface.fill((0,0,0,0))
             random_angles_generation = [(math.radians(random.randint(-360,-60)) if random.randint(0,1) == 0 else math.radians(random.randint(60,360))) for i in range(5)]
             current_attack = 1
+
+    if current_phase == 2 and current_attack == 4:
+        attack4()
+        if not attack_4_start:
+            attack_4_start = True
+            vector_surface.fill((0,0,0,0))
+            
 
 
     shield_hp_text = bigger_font.render(f"Shield HP: {shield_hp}" , True , (255,255,255) , (0,0,0))
@@ -782,6 +881,8 @@ while running:
     screen.blit(now_graphing_text,now_graphing_text_rect)
     screen.blit(current_graph_text,current_graph_text_rect)
     if current_phase == 2: screen.blit(shield_hp_text,shield_hp_text_rect)
+
+    screen.blit(vector_surface,(0,0))
 
 
     screen.blit(player_surface,(0,0))
