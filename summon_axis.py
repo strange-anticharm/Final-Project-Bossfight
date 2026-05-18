@@ -8,14 +8,14 @@ class Axis:
         self.size = size
         self.rate = rate
         self.width = width
-        self.left = x - size
-        self.right = x + size
-        self.top = y - size
-        self.bottom = y + size
-        self.c_left = x
-        self.c_right = x
-        self.c_top = y
-        self.c_bottom = y
+        self.left = self.x - size
+        self.right = self.x + size
+        self.top = self.y - size
+        self.bottom = self.y + size
+        self.c_left = self.x
+        self.c_right = self.x
+        self.c_top = self.y
+        self.c_bottom = self.y
 
     def extend(self):
         self.c_left += (self.left - self.c_left)/self.rate

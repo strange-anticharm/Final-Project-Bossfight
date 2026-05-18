@@ -35,10 +35,11 @@ pygame.font.init()
 font = pygame.font.Font(pygame.font.get_default_font(), 12)
 bigger_font = pygame.font.Font(pygame.font.get_default_font(),18)
 super_font = pygame.font.Font(pygame.font.get_default_font(),24)
+integral_font = pygame.font.Font("times.ttf", 48)
 hyper_font = pygame.font.Font("times.ttf", 75)
 player_pos = [250,250]
 player_rad = 20
-player_hp = 100
+player_hp = 1000 #change to 100 later
 player_hp_text = bigger_font.render(f"Your HP: {player_hp}",False,(255,255,255),(0,0,0))
 player_hp_text_rect = player_hp_text.get_rect(bottomleft = (0,height))
 player_col = (240, 216, 144) 
@@ -110,7 +111,7 @@ def axis(x,y):
 
 currently_graphing = False
 graph_index = 0
-def graph(func):
+def graph(func,end_after_done,origin):
     global currently_graphing
     global graph_index
     if currently_graphing: 
@@ -125,8 +126,8 @@ def graph(func):
                 pass
         y_scale = 25
         x_scale = 25
-        origin = [width//2,height//2]
 
+        print(graph_index)
 
         try:
             Xo = (graph_index - origin[0])/x_scale
@@ -136,10 +137,10 @@ def graph(func):
 
             if abs(Yn - Yo) < 900:
                 pygame.draw.line(graph_surface,(150,0,0),(graph_index,Yo),(graph_index+1,Yn),2)
-        except:
-            pass
-        graph_index += 1
-        if currently_graphing and graph_index > width:
+        except Exception as e: 
+                print(e)
+        graph_index += (1 if graph_index <= width else 0)
+        if currently_graphing and graph_index > width and end_after_done:
             currently_graphing = False
             graph_index = 0
 
@@ -289,7 +290,7 @@ def attack2():
                 axis_animation_tick = 0
                 attack2_start = False
     elif attack2_start and currently_graphing:
-        graph(function)
+        graph(function,True,[width//2,height//2])
         graph_hitbox = pygame.mask.from_threshold(graph_surface,(150,0,0),(10,10,10,255))
         circle_mask = pygame.mask.from_threshold(player_surface,player_col,(10,10,10,255))
         offset = (0,0)
@@ -645,8 +646,152 @@ def attack4():
         attack_4_index = 0
 
 
+def shade_integral(surface, func, minx, maxx, origin):
+    func = func.replace("^","**").replace("ln","log")
+    for i in range(len(func)):
+            try:
+                if func[i] in "0123456789x)" and (func[i+1].lower() in al or func[i+1] in "("):
+                    func = func[:i] + func[i] + "*" + func[i+1:]
+            except:
+                pass
+    points = []
+    x_scale, y_scale = 25,25
+
+    x = minx
+    while x <= maxx:
+        try:
+            screen_x = origin[0] + x * x_scale
+            screen_y = origin[1] - evalfunc(func, x) * y_scale
+            points.append((screen_x, screen_y))
+        except:
+            pass
+        x += 0.05
+
+    if len(points) < 2: #checks if a polygon can actually be made
+        return
+
+    baseline_y = origin[1]  # y position of x-axis on screen
+    points.append((points[-1][0], baseline_y))  # bottom-right
+    points.append((points[0][0],  baseline_y))  # bottom-left
+
+    pygame.draw.polygon(surface, (175,0,0), points)
 
 
+attack5_start = False
+attack5_index = 0
+attack5_axis = None
+animation_max_y = -player_pos[1]+50
+list_of_new_functions = ["sin(x) + 8","17 - (x/3)^2","xsin(x) + 9","sqrt(100-x^2)","5erf(x)+6"]
+new_chosen_functions = random.sample(list_of_new_functions,3)
+new_function = ""
+attack5_attack_tick = 0
+attack5_a = 0
+attack5_b = 0
+attack5_attack_wave = 0
+attack5_closing_tick = 0
+integral_surface = pygame.Surface(size,pygame.SRCALPHA)
+def attack5():
+    integral_surface.fill((0,0,0,0))
+    global attack5_start , attack5_index , attack5_axis
+    global player_pos , animation_max_y , player_hp
+    global width,height
+    global ping_sfx , bigger_font , warning_text_alpha , font
+    global currently_graphing , new_chosen_functions , new_function , graph_index
+    global attack5_attack_tick,attack5_a,attack5_b , attack5_attack_wave
+    global attack5_closing_tick
+    global super_font , integral_font , font , bigger_font
+    warning_text = bigger_font.render("Your movement is limited\nto the x-axis!",True,(0,0,0))
+    warning_text_rect = warning_text.get_rect(topleft = (0,0))
+    if attack5_start:
+        if attack5_index == 0:
+            attack5_axis = Axis(width//2,height//2,250,5,5)
+            ping_sfx.play()
+            attack5_closing_tick = 0
+            attack5_a = 0
+            attack5_b = 0
+            new_function = ""
+            warning_text_alpha = 255
+            attack5_axis.y = player_pos[1]
+        if attack5_index < 240:
+            if attack5_index < 90:
+                attack5_axis.extend()
+            elif attack5_index >= 90:
+                if warning_text_alpha > 0: warning_text_alpha -= 5
+                attack5_axis.y = animation_max_y * abs((0.65)**((attack5_index - 90)/10)*math.cos((attack5_index - 90)/10)) + 450
+                player_pos[1] = attack5_axis.y
+        elif attack5_index >= 240:
+            if not currently_graphing:
+                try:
+                    new_function = new_chosen_functions.pop()
+                    currently_graphing = True
+                except:
+                    if attack5_closing_tick == 0:
+                        graph_surface.fill((0,0,0,0))
+                        integral_surface.fill((0,0,0,0))
+                    if attack5_closing_tick < 35:
+                        attack5_axis.retract()
+                    else:
+                        attack5_start = False
+                    attack5_closing_tick += 1
+            else:
+                graph(new_function,False,[250,450])
+                if graph_index > width:
+                    if attack5_attack_wave < 3:
+                        if attack5_attack_tick == 0:
+                            ping_sfx.play()
+                            attack5_a , attack5_b = random.randint(-10,10),random.randint(-10,10)
+                            while abs(attack5_b - attack5_a) < 4 or abs(attack5_a - attack5_b) > 10:
+                                attack5_b = random.randint(-10,10)
+                        if attack5_attack_tick < 60:
+                            integral_sign_text = integral_font.render("\u222B",True,(0,0,0),(255,255,255))
+                            integral_sign_text_rect = integral_sign_text.get_rect(topleft = (25,25))
+                            upper_bound_text = bigger_font.render(f"{max(attack5_a,attack5_b)}",True,(0,0,0),(255,255,255))
+                            upper_bound_text_rect = upper_bound_text.get_rect(topleft=integral_sign_text_rect.topright)
+                            lower_bound_text = bigger_font.render(f"{min(attack5_a,attack5_b)}",True,(0,0,0),(255,255,255))
+                            lower_bound_text_rect = lower_bound_text.get_rect(bottomleft=integral_sign_text_rect.bottomright)
+                            function_text = super_font.render("f(x)dx",True,(0,0,0))
+                            function_text_rect = function_text.get_rect(topleft = upper_bound_text_rect.bottomright)
+                            screen.blit(integral_sign_text,integral_sign_text_rect)
+                            screen.blit(upper_bound_text,upper_bound_text_rect)
+                            screen.blit(lower_bound_text,lower_bound_text_rect)
+                            screen.blit(function_text,function_text_rect)
+                        elif attack5_attack_tick >= 60 and attack5_attack_tick < 120:
+                            shade_integral(integral_surface,new_function,min(attack5_a,attack5_b) , max(attack5_a, attack5_b) , [250,450])
+                        else:
+                            attack5_attack_tick = -1
+                            attack5_attack_wave += 1
+                        
+                        
+                        attack5_attack_tick += 1
+                    else:
+                        currently_graphing = False
+                        graph_index = 0
+                        attack5_attack_tick = 0
+                        attack5_attack_wave = 0
+
+
+        warning_text.set_alpha(warning_text_alpha)
+        screen.blit(warning_text,warning_text_rect)
+        if attack5_index >= 10 and attack5_closing_tick <= 0:
+            for i in range(width//25):
+                pygame.draw.line(screen,(0,0,0),(25 * i , attack5_axis.y + 5),(25 * i , attack5_axis.y - 5),2)
+                screen.blit(font.render(f"{i - 10}" , True , (0,0,0)),font.render(f"{i - 10}" , True , (0,0,0)).get_rect(topleft=(25 * i , attack5_axis.y + 5)))
+            for i in range(height//25):
+                pygame.draw.line(screen,(0,0,0),(245,height - 25*i),(255, height - 25*i),2)
+                screen.blit(font.render(f"{i - int(height//25 - attack5_axis.y//25 - (1 if attack5_index > 90 else 0))}" , True , (0,0,0)),font.render(f"{i - int(height//25 - attack5_axis.y//25)}" , True , (0,0,0)).get_rect(topleft=(255, height - 25*i)))
+        attack5_axis.draw(screen)
+
+        integral_hitbox = pygame.mask.from_threshold(integral_surface,(175,0,0),(10,10,10,255))
+        circle_mask = pygame.mask.from_threshold(player_surface,player_col,(10,10,10,255))
+        if integral_hitbox.overlap(circle_mask,(0,0)):
+                if current_phase != -1: damage_sfx.play()
+                player_hp -= 1
+
+
+        attack5_index += 1
+
+
+ 
 
 
 
@@ -705,7 +850,7 @@ while running:
         attack3_circle_rad_target = math.sqrt(250**2 + 250**2) + 10
         target_y += ((-height//2 - 10) - target_y)/4
         target_x += (-target_x)/4
-        attack1(30)
+        attack1(120) #change to 30 later
         if not attack_1_start:
             attack2_start = True
             current_attack = 2
@@ -737,8 +882,19 @@ while running:
     if current_phase == 2 and current_attack == 4:
         attack4()
         if not attack_4_start:
-            attack_4_start = True
+            attack5_start = True
+            new_chosen_functions = random.sample(list_of_new_functions,3)
+            animation_max_y = player_pos[1]-450
             vector_surface.fill((0,0,0,0))
+            current_attack = 5
+    
+    if current_phase == 2 and current_attack == 5:
+        screen.blit(integral_surface,(0,0))
+        attack5()
+        if not attack5_start:
+            current_attack = 4
+            attack5_index = 0
+            attack_4_start = True
             
 
 
@@ -826,10 +982,10 @@ while running:
         if current_phase == 1 or current_phase == 2:
             player_in_dash = False
             pressed = pygame.key.get_pressed()
-            if pressed[pygame.K_w]:
+            if pressed[pygame.K_w] and not attack5_start:
                 if player_pos[1] - player_rad > 0:
                     player_pos[1] -= 3
-            if pressed[pygame.K_s]:
+            if pressed[pygame.K_s] and not attack5_start:
                 if player_pos[1] + player_rad < height:
                     player_pos[1] += 3
             if pressed[pygame.K_a]:
@@ -840,8 +996,9 @@ while running:
                     player_pos[0] += 3
             #apperantly pressed[pygame.K_a] returns 1 0 or -1
             movement_dx = pressed[pygame.K_d] - pressed[pygame.K_a]
-            movement_dy = pressed[pygame.K_s] - pressed[pygame.K_w]
-            player_direction = math.radians(270) if (movement_dx == 0 and movement_dy == 0) else math.atan2(movement_dy,movement_dx)
+            movement_dy = (pressed[pygame.K_s] - pressed[pygame.K_w]) if not attack5_start else 0
+            player_direction = (math.radians(270) if not attack5_start else math.radians(0)) if (movement_dx == 0 and movement_dy == 0) else math.atan2(movement_dy,movement_dx)
+
             if current_attack == 3 and current_phase == 1:
                 cx, cy = width // 2, height // 2 #circle center x,y
                 dx_fc = player_pos[0] - cx #delta x from circle
@@ -884,7 +1041,7 @@ while running:
 
     screen.blit(vector_surface,(0,0))
 
-
+    if current_phase == 1: attack5()
     screen.blit(player_surface,(0,0))
 
     for item in all_damage_texts:
