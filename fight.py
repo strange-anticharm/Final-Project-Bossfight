@@ -7,6 +7,7 @@ from number_attack import Number
 from attack_damage_number import Value
 from summon_axis import Axis
 from vector_attack import VectorAttack
+from power_rule_function import Power_rule
 #os.environ['SDL_AUDIODRIVER'] = 'dsp'
 
 pygame.init()
@@ -40,7 +41,7 @@ integral_font = pygame.font.Font("times.ttf", 48)
 hyper_font = pygame.font.Font("times.ttf", 75)
 player_pos = [250,250]
 player_rad = 20
-player_hp = 1000 #change to 100 later
+player_hp = 100
 player_hp_text = bigger_font.render(f"Your HP: {player_hp}",False,(255,255,255),(0,0,0))
 player_hp_text_rect = player_hp_text.get_rect(bottomleft = (0,height))
 player_col = (240, 216, 144) 
@@ -57,7 +58,7 @@ boss_impact_frame = pygame.transform.scale(boss_impact_frame , (75,75))
 boss_impact_frame_rect = boss_impact_frame.get_rect(center=boss_pos)
 pygame.display.set_icon(boss_image)
 boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
-boss_hp = 65
+boss_hp = 6280
 boss_hp_text = font.render(f"HP: {boss_hp}",False,(0,0,0),(255,255,255))
 boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
 
@@ -161,6 +162,21 @@ def generate_random_number_attacks(amount,list):
         temporary_value = random.randint(1,6)
         temporary_speed = 4
         list.append(Number(temporary_value,temporary_angle_deg,temp_x,temp_y,temporary_speed))
+
+def generate_random_function(amount,list):
+    for i in range(amount):
+        edge = random.randint(0, 3)
+        if edge == 0: 
+            temp_x, temp_y = random.randint(0, width), 0
+        elif edge == 1: 
+            temp_x, temp_y = random.randint(0, width), height
+        elif edge == 2: 
+            temp_x, temp_y = 0, random.randint(0, height)
+        else:           
+            temp_x, temp_y = width, random.randint(0, height)
+        temporary_angle_deg = math.degrees(math.atan2(player_pos[1] - temp_y, player_pos[0] - temp_x))
+        temporary_a , temporary_b = random.randint(1,8) , random.randint(1,5)
+        list.append(Power_rule(temp_x,temp_y,temporary_angle_deg,(temporary_a,temporary_b)))
 
 player_surface = pygame.Surface(size, pygame.SRCALPHA)
 
@@ -742,10 +758,28 @@ def attack5():
         attack5_index += 1
 
 
- 
 
 
-
+timer_function_attacks = 0
+attack6_start = True
+function_attack_list = []
+at6_warning = bigger_font.render("Shoot the function to differentiate!\nDamage is calculated based on a*b^2 except for when b = 0",True,(0,0,0))
+at6_warning_rect = at6_warning.get_rect(topleft=(0,0))
+at6_warning_alpha = 255
+def attack6(amount,tempo):
+    global timer_function_attacks
+    global attack6_start
+    global at6_warning_rect,at6_warning,at6_warning_alpha
+    screen.blit(at6_warning,at6_warning_rect)
+    at6_warning.set_alpha(at6_warning_alpha)
+    if attack6_start:
+        timer_function_attacks += 1
+        at6_warning_alpha = max(at6_warning_alpha - (1 if timer_function_attacks % 60 == 0 else 0) , 0)
+        if timer_function_attacks % tempo == 0:
+                generate_random_function(1,function_attack_list)
+        if timer_function_attacks == amount*tempo:
+            attack6_start = False
+            timer_function_attacks = 0
 
 
 
@@ -765,6 +799,9 @@ while running:
     if current_phase >= 0 : screen.fill((255,255,255))
     player_surface.fill((255,255,255,0))
     shield_surface.fill((255,255,255,0))
+    
+
+
 
     player_iframe_duration -= (1 if player_iframe_duration > 0 else 0)
     if player_iframe_duration == 0: player_in_iframe = False
@@ -801,7 +838,7 @@ while running:
         attack3_circle_rad_target = math.sqrt(250**2 + 250**2) + 10
         target_y += ((-height//2 - 10) - target_y)/4
         target_x += (-target_x)/4
-        attack1(120) #change to 30 later
+        attack1(30)
         if not attack_1_start:
             attack2_start = True
             current_attack = 2
@@ -843,9 +880,16 @@ while running:
         screen.blit(integral_surface,(0,0))
         attack5()
         if not attack5_start:
-            current_attack = 4
+            current_attack = 6
             attack5_index = 0
+            attack6_start = True
+
+    if current_phase == 2 and current_attack == 6:
+        attack6(15,90)
+        if not attack6_start:
+            current_attack = 4
             attack_4_start = True
+            at6_warning_alpha = 255
             
 
 
@@ -959,12 +1003,12 @@ while running:
                 if dist > max_dist:
                     player_pos = [cx + dx_fc / dist * max_dist , cy + dy_fc / dist * max_dist]
 
-
-
     for item in all_bullets:
         item.draw(screen)
         if item.move(0,0,width,height):
             all_bullets.remove(item)
+
+       
 
         if item.bullet_rect.colliderect(boss_hitbox) and current_phase == 1:
             random_damage_value = random.randint(8,13)
@@ -974,12 +1018,31 @@ while running:
             all_damage_texts.append(Value(random_damage_value , random_damage_value_xpos , random_damage_value_xpos , random_damage_value_ypos , random_damage_value_ypos+20 ,24, 10 , 45 , (200,0,0)))
             all_bullets.remove(item)
         elif current_phase == 2 and circle_rect_collide(tuple(boss_pos),shield_current_size,item.bullet_rect):
-            shield_hp -= 50 # change to 10 later
+            shield_hp -= 10
             random_damage_value_xpos = random.randint(10*boss_pos[0] - 375 , 10*boss_pos[0] + 375)//10
             random_damage_value_ypos = random.randint(10*boss_pos[1] - 375 , 10*boss_pos[1] + 375)//10
             all_damage_texts.append(Value(0 , random_damage_value_xpos , random_damage_value_xpos , random_damage_value_ypos , random_damage_value_ypos+20 ,24, 10 , 45 , (0,230,255)))
             all_bullets.remove(item)
     
+
+    for func_item in function_attack_list:
+        func_item.draw(screen)
+
+        if func_item.alpha == 0:
+            function_attack_list.remove(func_item)
+        
+        if circle_rect_collide(tuple(player_pos),player_rad,func_item.hitbox):
+            if not player_in_dash:
+                if current_phase != -1 and isinstance(current_phase,int): damage_sfx.play()
+                player_hp -= func_item.a * (func_item.b + 1 if func_item.b == 0 else func_item.b)
+                function_attack_list.remove(func_item)
+
+        for item in all_bullets:
+            if item.bullet_rect.colliderect(func_item.hitbox):
+                func_item.differentiate()   
+                all_bullets.remove(item) 
+
+        func_item.move(math.degrees(math.atan2(player_pos[1] - func_item.y, player_pos[0] - func_item.x)))
 
 
     screen.blit(boss_image,boss_hitbox)
@@ -1009,6 +1072,7 @@ while running:
                 number_attack_list.remove(item)
                 if current_phase != -1 and isinstance(current_phase,int): damage_sfx.play()
                 player_hp -= item.value
+
 
 
 

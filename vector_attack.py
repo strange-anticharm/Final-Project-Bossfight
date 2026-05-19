@@ -21,7 +21,7 @@ class VectorAttack:
 
         elapsed = self.vc_index - 60
         num_lines = min(elapsed // 30 + 1, 5)
-        if self.vc_index > 60:
+        if 60 < self.vc_index < 30*5 + 60:
             self.vector_text = f"v = {self.list_of_vectors[num_lines - 1][0]}i + {-self.list_of_vectors[num_lines - 1][1]}j"
         else:
             self.vector_text = ""
