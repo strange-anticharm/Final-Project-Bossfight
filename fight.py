@@ -24,6 +24,7 @@ death_sfx = pygame.mixer.Sound("death_sfx.mp3")
 damage_sfx = pygame.mixer.Sound("damage_sfx.mp3")
 boss_hit_sfx = pygame.mixer.Sound("boss_hit_sfx.mp3")
 ping_sfx = pygame.mixer.Sound("ding.mp3")
+dust_sfx = pygame.mixer.Sound("dust_away_sfx.mp3")
 
 al = "qwertyuiopasdfghjklzxcvbnm"
 
@@ -58,7 +59,7 @@ boss_impact_frame = pygame.transform.scale(boss_impact_frame , (75,75))
 boss_impact_frame_rect = boss_impact_frame.get_rect(center=boss_pos)
 pygame.display.set_icon(boss_image)
 boss_hitbox = boss_image.get_rect(center = tuple(boss_pos))
-boss_hp = 6280
+boss_hp = 6#280
 boss_hp_text = font.render(f"HP: {boss_hp}",False,(0,0,0),(255,255,255))
 boss_hp_text_rect = boss_hp_text.get_rect(center = (boss_pos[0],boss_pos[1] - 10-75/2))
 
@@ -445,6 +446,17 @@ def reset_phase1():
     attack3_circle_rad_target = math.sqrt(250**2 + 250**2) + 10
     target_y += ((-height//2 - 10) - target_y)/4
 
+def reset_phase2():
+    global attack_4_start,attack5_start,attack6_start,list_of_vector_attacks,list_of_new_functions
+    attack_4_start = False
+    attack5_start = False
+    attack6_start = False
+    integral_surface.fill((0,0,0,0))
+    graph_surface.fill((0,0,0,0))
+    vector_surface.fill((0,0,0,0))
+    list_of_new_functions = []
+    list_of_vector_attacks = []
+
 last_value_attack = ""
 last_attack = ""
 boss_impact_frame_opacity = 255 
@@ -456,6 +468,7 @@ shield_target_size = math.dist(tuple(boss_pos),boss_hitbox.topleft) + 10
 SHIELD_INIT = math.dist(tuple(boss_pos),tuple((a + b) / 2 for a, b in zip(boss_hitbox.topleft, boss_hitbox.bottomleft)))
 shield_current_size = SHIELD_INIT
 shield_hp = 5000
+shield_opacity = 255//2
 def cutscene_phase2():
     global cutscene_frame , in_cutscene
     global current_phase
@@ -478,7 +491,6 @@ def cutscene_phase2():
     global cutscene_frame_phase2
     global boss_hp_text_alpha
     global angle
-    global dialouge1
     global shield_target_size
     global shield_current_size
     global ping_sfx
@@ -781,6 +793,51 @@ def attack6(amount,tempo):
             attack6_start = False
             timer_function_attacks = 0
 
+final_cutscene_index = 0
+you_win_text = hyper_font.render(f"You Win!" , True , (150 , 150, 0))
+you_win_text_rect = you_win_text.get_rect(center = (250,250))
+def final_cutscene():
+    global shield_opacity
+    global final_cutscene_index , current_phase , all_bullets
+    global dialouge1 , dialouge1_rect
+    global dust_sfx
+    global bigger_font
+    global you_win_text , you_win_text_rect
+    global player_pos , boss_poss , angle
+    reset_phase2()
+    if final_cutscene_index == 0:
+        all_bullets = []
+        dust_sfx.play()
+        pygame.mixer.music.stop()
+        dialouge1 = bigger_font.render(f"",True,(0,0,0))
+        dialouge1_rect = dialouge1.get_rect(topleft = boss_hitbox.topright)
+    current_phase = 2.5
+    shield_opacity = max(shield_opacity - 2 , 0)
+
+    if final_cutscene_index > 60:
+        screen.blit(dialouge1, dialouge1_rect)
+        if final_cutscene_index >= 60 and final_cutscene_index < 120:
+            dialouge1 = bigger_font.render(f"<(wait)", True, (0,0,0))
+            dialouge1_rect = dialouge1.get_rect(topleft=boss_hitbox.topright)
+        if final_cutscene_index >= 120 and final_cutscene_index < 240:
+            dialouge1 = bigger_font.render(f"<(please spare me)", True, (0,0,0))
+            dialouge1_rect = dialouge1.get_rect(topleft=boss_hitbox.topright)
+        if final_cutscene_index >= 240 and final_cutscene_index < 360:
+            dialouge1 = bigger_font.render(f"<(hmmm)", True, (0,0,0))
+            dialouge1_rect = dialouge1.get_rect(topleft=(player_pos[0] + player_rad, player_pos[1] - player_rad))
+        if final_cutscene_index >= 360 and final_cutscene_index < 360 + 120:
+            dialouge1 = bigger_font.render(f"<(nah lol)", True, (0,0,0))
+            dialouge1_rect = dialouge1.get_rect(topleft=(player_pos[0] + player_rad, player_pos[1] - player_rad))
+        if final_cutscene_index >= 360 + 120 and final_cutscene_index < 420 + 240 + 120:
+            screen.fill((0,0,0))
+            screen.blit(you_win_text, you_win_text_rect)
+
+
+
+
+    final_cutscene_index += 1
+
+
 
 
 
@@ -937,7 +994,7 @@ while running:
     bulletx,bullety = (int(23* math.cos(angle) + player_pos[0]) + offset_vec.x, int(23* math.sin(angle) + player_pos[1]) + offset_vec.y)
     
 
-    if current_phase > 1: pygame.draw.aacircle(shield_surface,(0,255,255,255//2),tuple(boss_pos),shield_current_size)
+    if current_phase > 1: pygame.draw.aacircle(shield_surface,(0,255,255,shield_opacity),tuple(boss_pos),shield_current_size)
 
 
     axis(width//2,target_y)
@@ -1082,6 +1139,9 @@ while running:
         death()
     if boss_hp <= 0 and current_phase < 2:
             cutscene_phase2()
+    if shield_hp <= 0:
+        shield_hp = 0
+        final_cutscene()
 
 
     pygame.display.flip()
